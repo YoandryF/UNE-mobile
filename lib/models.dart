@@ -76,13 +76,15 @@ class Equipment {
   String name;
   double watts;
   double hours;
+  int meter;
 
-  Equipment({required this.id, required this.name, required this.watts, required this.hours});
+  Equipment({required this.id, required this.name, required this.watts, required this.hours, this.meter = 0});
 
-  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'watts': watts, 'hours': hours};
+  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'watts': watts, 'hours': hours, 'meter': meter};
   factory Equipment.fromMap(Map m) => Equipment(
     id: m['id'], name: m['name'],
     watts: (m['watts']).toDouble(), hours: (m['hours']).toDouble(),
+    meter: m['meter'] ?? 0,
   );
 
   double get monthlyKwh => (watts * hours * 30) / 1000;

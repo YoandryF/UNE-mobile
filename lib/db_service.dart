@@ -49,8 +49,10 @@ class DbService {
   }
 
   // Equipment
-  static List<Equipment> getEquipment() {
-    return _equipmentBox.values.map((v) => Equipment.fromMap(Map<String, dynamic>.from(v))).toList();
+  static List<Equipment> getEquipment({int? meter}) {
+    final all = _equipmentBox.values.map((v) => Equipment.fromMap(Map<String, dynamic>.from(v))).toList();
+    if (meter != null) return all.where((e) => e.meter == meter).toList();
+    return all;
   }
 
   static Future<void> putEquipment(Equipment e) async {

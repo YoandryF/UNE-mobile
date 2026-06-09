@@ -24,7 +24,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     _load();
   }
 
-  void _load() => setState(() => _equipment = DbService.getEquipment());
+  void _load() => setState(() => _equipment = DbService.getEquipment(meter: widget.config.activeMeter));
 
   Future<void> _add() async {
     final name = _nameCtrl.text.trim();
@@ -34,7 +34,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa todos los campos'), behavior: SnackBarBehavior.floating));
       return;
     }
-    await DbService.putEquipment(Equipment(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, watts: watts, hours: hours));
+    await DbService.putEquipment(Equipment(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, watts: watts, hours: hours, meter: widget.config.activeMeter));
     _nameCtrl.clear(); _wattsCtrl.clear(); _hoursCtrl.clear();
     FocusScope.of(context).unfocus();
     _load();
