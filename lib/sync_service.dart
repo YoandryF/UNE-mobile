@@ -15,6 +15,7 @@ class SyncService extends ChangeNotifier {
   SyncStatus _status = SyncStatus.offline;
   String _message = 'Modo offline';
   String _serverUrl = '';
+  String _lastSync = '';
   Timer? _periodicTimer;
   bool _enabled = false;
 
@@ -89,11 +90,19 @@ class SyncService extends ChangeNotifier {
     _setStatus(SyncStatus.syncing, 'Sincronizando...');
 
     try {
+      // 0. Ping to verify connectivity quickly
+      final ping = await http.get(Uri.parse('$_serverUrl/api/ping'))
+          .timeout(const Duration(seconds: 3));
+      if (ping.statusCode != 200) throw Exception('Ping failed');
+
       // 1. Push pending operations
       await _pushPending();
 
-      // 2. Pull full state from server
+      // 2. Pull state from server (incremental if possible)
       await _pullFromServer();
+
+      // 3. Save last sync timestamp
+      _lastSync = DateTime.now().toUtc().toIso8601String();
 
       _setStatus(SyncStatus.synced, 'Sincronizado ✓');
       return true;
@@ -138,18 +147,23 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<void> _pullFromServer() async {
-    final resp = await http.get(Uri.parse('$_serverUrl/api/sync'))
+    // Use incremental sync if we have a last sync timestamp
+    final syncUrl = _lastSync.isNotEmpty
+        ? '$_serverUrl/api/sync?since=$_lastSync'
+        : '$_serverUrl/api/sync';
+    final resp = await http.get(Uri.parse(syncUrl))
         .timeout(const Duration(seconds: 10));
     if (resp.statusCode != 200) throw Exception('Sync failed: ${resp.statusCode}');
 
     final remote = jsonDecode(resp.body) as Map<String, dynamic>;
+    final isIncremental = remote['incremental'] == true;
 
     final readingsBox = Hive.box('readings');
     final equipmentBox = Hive.box('equipment');
     final configBox = Hive.box('config');
 
     if (remote['readings'] != null) {
-      await readingsBox.clear();
+      if (!isIncremental) await readingsBox.clear();
       for (final r in remote['readings']) {
         final map = Map<String, dynamic>.from(r);
         map['photoPath'] = map['photo'];

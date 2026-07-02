@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'db_service.dart';
 import 'models.dart';
 import 'sync_service.dart';
+import 'update_service.dart';
 import 'theme.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/readings_screen.dart';
@@ -55,6 +56,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for updates after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
+  }
+
+  Future<void> _checkUpdate() async {
+    final config = DbService.getConfig();
+    final serverUrl = config.serverUrl;
+    if (serverUrl.isNotEmpty && mounted) {
+      await UpdateService.checkAndPrompt(context, serverUrl);
+    }
+  }
 
   Future<void> _switchMeter(int meter) async {
     final config = DbService.getConfig();
