@@ -1,7 +1,7 @@
 name: une_consumo
 description: Control de consumo eléctrico UNE Cuba
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.4.0
@@ -17,11 +17,20 @@ dependencies:
   intl: 0.19.0
   share_plus: 10.1.4
   file_picker: 8.1.7
+  http: 1.2.2
+  connectivity_plus: 6.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: 4.0.0
+  flutter_launcher_icons: 0.14.3
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#0F0F1A"
+  adaptive_icon_foreground: "assets/icon_foreground.png"
 
 flutter:
   uses-material-design: true
