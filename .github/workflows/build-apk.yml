@@ -23,6 +23,9 @@ on:
   # También permite ejecutarlo manualmente desde GitHub
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
