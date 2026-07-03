@@ -6,6 +6,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models.dart';
 import '../db_service.dart';
+import '../sync_service.dart';
+import '../update_service.dart';
 import '../widgets/confirm_dialog.dart';
 
 class ConfigScreen extends StatefulWidget {
@@ -21,6 +23,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
   late TextEditingController _surchargeCtrl;
   late TextEditingController _alertCtrl;
   late TextEditingController _cycleCtrl;
+  late TextEditingController _serverUrlCtrl;
+  late TextEditingController _serverPortCtrl;
   late List<TextEditingController> _meterCtrls;
 
   static const _labels = ['0–100','101–150','151–200','201–250','251–300','301–350','351–400','401–450','451–500','501–600','601–700','701–1000','1001–1800','1801–2600','2601–3400','3401–4200','4201–5000','>5000'];
@@ -31,12 +35,51 @@ class _ConfigScreenState extends State<ConfigScreen> {
     _initControllers();
   }
 
+  @override
+  void didUpdateWidget(covariant ConfigScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.config != widget.config) {
+      _initControllers();
+    }
+  }
+
+  String _parseHost(String url) {
+    if (url.isEmpty) return '';
+    final u = url.replaceAll('http://', '').replaceAll('https://', '');
+    return u.contains(':') ? u.split(':').first : u;
+  }
+
+  String _parsePort(String url) {
+    if (url.isEmpty) return '3000';
+    final u = url.replaceAll('http://', '').replaceAll('https://', '');
+    return u.contains(':') ? u.split(':').last.replaceAll('/', '') : '3000';
+  }
+
+  String _buildServerUrl() {
+    final host = _serverUrlCtrl.text.trim();
+    final port = _serverPortCtrl.text.trim();
+    if (host.isEmpty) return '';
+    return 'http://$host:${port.isEmpty ? '3000' : port}';
+  }
+
   void _initControllers() {
     final c = widget.config;
-    _rateControllers = c.tariffs.ranges.map((r) => TextEditingController(text: r.rate.toString())).toList();
+    // Ensure tariffs always has exactly 18 ranges (fill with defaults if needed)
+    final defaultRanges = TariffConfig.defaultConfig().ranges;
+    final ranges = List<TariffRange>.generate(18, (i) {
+      if (i < c.tariffs.ranges.length) return c.tariffs.ranges[i];
+      if (i < defaultRanges.length) return defaultRanges[i];
+      return TariffRange(0, 0);
+    });
+    // Fix config ranges in memory too
+    c.tariffs.ranges = ranges;
+
+    _rateControllers = ranges.map((r) => TextEditingController(text: r.rate.toString())).toList();
     _surchargeCtrl = TextEditingController(text: c.tariffs.surcharge.toString());
     _alertCtrl = TextEditingController(text: c.alertThreshold.toString());
     _cycleCtrl = TextEditingController(text: c.billCycleDay.toString());
+    _serverUrlCtrl = TextEditingController(text: _parseHost(c.serverUrl));
+    _serverPortCtrl = TextEditingController(text: _parsePort(c.serverUrl));
     _meterCtrls = c.meters.map((m) => TextEditingController(text: m)).toList();
   }
 
@@ -50,7 +93,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
     widget.config.alertThreshold = double.tryParse(_alertCtrl.text) ?? 450;
     widget.config.billCycleDay = int.tryParse(_cycleCtrl.text) ?? 1;
     widget.config.meters = _meterCtrls.map((c) => c.text.trim().isEmpty ? 'Metro' : c.text.trim()).toList();
+    widget.config.serverUrl = _buildServerUrl();
     await DbService.saveConfig(widget.config);
+    // Update sync service URL
+    SyncService().init(widget.config.serverUrl);
     widget.onChanged();
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Configuración guardada')));
   }
@@ -134,6 +180,66 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   Expanded(child: OutlinedButton.icon(onPressed: _export, icon: const Icon(Icons.download), label: const Text('Exportar'))),
                   const SizedBox(width: 8),
                   Expanded(child: OutlinedButton.icon(onPressed: _import, icon: const Icon(Icons.upload), label: const Text('Importar'))),
+                ]),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Server sync
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Sincronización', style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(controller: _serverUrlCtrl, decoration: const InputDecoration(labelText: 'IP del servidor', hintText: '192.168.1.100', border: OutlineInputBorder(), prefixIcon: Icon(Icons.cloud, size: 18), isDense: true)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: TextField(controller: _serverPortCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Puerto', hintText: '3000', border: OutlineInputBorder(), isDense: true)),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final url = _buildServerUrl();
+                        if (url.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa la IP del servidor'))); return; }
+                        SyncService().serverUrl = url;
+                        final ok = await SyncService().sync();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '✓ Conectado al servidor' : '✗ No se pudo conectar')));
+                        }
+                      },
+                      icon: const Icon(Icons.sync, size: 16),
+                      label: const Text('Probar conexión', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final url = _buildServerUrl();
+                        if (url.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configura el servidor primero'))); return; }
+                        await UpdateService.checkAndPrompt(context, url);
+                        if (mounted) {
+                          final version = await UpdateService.checkForUpdate(url);
+                          if (version != null && !UpdateService.hasUpdate(version)) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Ya tienes la última versión')));
+                          } else if (version == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✗ No se pudo verificar')));
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.system_update, size: 16),
+                      label: const Text('Actualizaciones', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
                 ]),
               ]),
             ),

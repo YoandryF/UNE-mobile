@@ -1,0 +1,105 @@
+# .github/workflows/build-apk.yml
+# Compila y publica la APK automáticamente al crear un tag de versión
+#
+# CÓMO SE DISPARA:
+#   git tag v1.2.0
+#   git push origin v1.2.0
+#
+# QUÉ HACE:
+#   1. Clona el repo
+#   2. Instala Flutter
+#   3. Compila APK en release
+#   4. Firma el APK (con keystore en secrets)
+#   5. Crea un GitHub Release con el APK adjunto
+
+name: Build & Publish APK
+
+# Se ejecuta cuando se pushea un tag que empiece con "v"
+on:
+  push:
+    tags:
+      - 'v*'
+
+  # También permite ejecutarlo manualmente desde GitHub
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clonar el código
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Instalar Java (necesario para Android SDK)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Instalar Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      # 4. Instalar dependencias
+      - name: Get dependencies
+        run: flutter pub get
+
+      # 5. Decodificar keystore desde secrets (para firma)
+      - name: Decode Keystore
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+
+      # 6. Crear key.properties para la firma
+      - name: Create key.properties
+        if: env.KEY_PASSWORD != ''
+        env:
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+
+      # 7. Compilar APK release
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 8. Renombrar APK con versión
+      - name: Rename APK
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          cp build/app/outputs/flutter-apk/app-release.apk une-consumo-v${VERSION}.apk
+
+      # 9. Crear GitHub Release y subir APK
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "UNE Consumo ${{ github.ref_name }}"
+          body: |
+            ## ⚡ UNE Consumo Eléctrico ${{ github.ref_name }}
+
+            APK compilada automáticamente.
+
+            ### Instalación
+            1. Descarga `une-consumo-${{ github.ref_name }}.apk`
+            2. Abre el archivo en tu teléfono Android
+            3. Permite la instalación de fuentes desconocidas si te lo pide
+          files: une-consumo-*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

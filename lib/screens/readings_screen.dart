@@ -7,6 +7,7 @@ import '../db_service.dart';
 import '../tariff_calc.dart';
 import '../theme.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/blackouts_widget.dart';
 
 class ReadingsScreen extends StatefulWidget {
   final AppConfig config;
@@ -30,6 +31,12 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
     _loadReadings();
   }
 
+  @override
+  void didUpdateWidget(covariant ReadingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadReadings();
+  }
+
   void _loadReadings() {
     _readings = DbService.getReadings(meter: widget.config.activeMeter);
     _readings.sort((a, b) => a.date.compareTo(b.date) != 0 ? a.date.compareTo(b.date) : a.time.compareTo(b.time));
@@ -49,7 +56,41 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.camera, maxWidth: 800, imageQuality: 70);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('Adjuntar foto', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: CircleAvatar(backgroundColor: Theme.of(ctx).colorScheme.primary.withOpacity(0.1), child: Icon(Icons.camera_alt, color: Theme.of(ctx).colorScheme.primary)),
+              title: const Text('Tomar foto'),
+              subtitle: const Text('Usar la cámara del teléfono'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: CircleAvatar(backgroundColor: Theme.of(ctx).colorScheme.tertiary.withOpacity(0.1), child: Icon(Icons.photo_library, color: Theme.of(ctx).colorScheme.tertiary)),
+              title: const Text('Elegir de galería'),
+              subtitle: const Text('Seleccionar una foto existente'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            if (_photoPath != null)
+              ListTile(
+                leading: CircleAvatar(backgroundColor: Colors.red.withOpacity(0.1), child: const Icon(Icons.delete, color: Colors.red)),
+                title: const Text('Quitar foto'),
+                onTap: () { Navigator.pop(ctx); setState(() => _photoPath = null); },
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (source == null) return;
+    final picked = await ImagePicker().pickImage(source: source, maxWidth: 800, imageQuality: 70);
     if (picked != null) setState(() => _photoPath = picked.path);
   }
 
@@ -93,31 +134,78 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
 
   Future<void> _editReading(Reading r) async {
     final readingCtrl = TextEditingController(text: r.reading.toString());
+    String? editPhotoPath = r.photoPath;
+
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(children: [
-          Icon(Icons.edit, color: Theme.of(ctx).colorScheme.primary),
-          const SizedBox(width: 8),
-          const Text('Editar Registro'),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: readingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Lectura (kWh)')),
-          const SizedBox(height: 12),
-          Text('Creado: ${r.createdAt.substring(0, 16).replaceAll('T', ' ')}', style: Theme.of(ctx).textTheme.bodySmall),
-          if (r.updatedAt != r.createdAt)
-            Text('Editado: ${r.updatedAt.substring(0, 16).replaceAll('T', ' ')}', style: TextStyle(color: Theme.of(ctx).colorScheme.secondary, fontSize: 12)),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(children: [
+            Icon(Icons.edit, color: Theme.of(ctx).colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Editar Registro'),
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: readingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Lectura (kWh)')),
+            const SizedBox(height: 12),
+            // Photo option
+            OutlinedButton.icon(
+              onPressed: () async {
+                final source = await showModalBottomSheet<dynamic>(
+                  context: ctx,
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                  builder: (bCtx) => SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        ListTile(
+                          leading: const Icon(Icons.camera_alt),
+                          title: const Text('Tomar foto'),
+                          onTap: () => Navigator.pop(bCtx, ImageSource.camera),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.photo_library),
+                          title: const Text('Elegir de galería'),
+                          onTap: () => Navigator.pop(bCtx, ImageSource.gallery),
+                        ),
+                        if (editPhotoPath != null)
+                          ListTile(
+                            leading: const Icon(Icons.delete, color: Colors.red),
+                            title: const Text('Quitar foto'),
+                            onTap: () => Navigator.pop(bCtx, 'remove'),
+                          ),
+                      ]),
+                    ),
+                  ),
+                );
+                if (source == 'remove') {
+                  setDialogState(() => editPhotoPath = null);
+                } else if (source is ImageSource) {
+                  final picked = await ImagePicker().pickImage(source: source, maxWidth: 800, imageQuality: 70);
+                  if (picked != null) setDialogState(() => editPhotoPath = picked.path);
+                }
+              },
+              icon: Icon(editPhotoPath != null ? Icons.check_circle : Icons.attach_file, size: 16, color: editPhotoPath != null ? Colors.green : null),
+              label: Text(editPhotoPath != null ? 'Foto adjunta ✓' : 'Adjuntar evidencia', style: const TextStyle(fontSize: 13)),
+              style: editPhotoPath != null ? OutlinedButton.styleFrom(side: BorderSide(color: Colors.green.withOpacity(0.5))) : null,
+            ),
+            const SizedBox(height: 12),
+            Text('📅 Fecha: ${r.date}  ${r.time}', style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+            if (r.updatedAt != r.createdAt)
+              Text('✏️ Editado: ${r.updatedAt.length >= 16 ? r.updatedAt.substring(0, 16).replaceAll('T', ' ') : r.updatedAt}', style: TextStyle(color: Theme.of(ctx).colorScheme.secondary, fontSize: 12)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+          ],
+        ),
       ),
     );
     if (result != true) return;
     final newReading = double.tryParse(readingCtrl.text);
     if (newReading == null) return;
     r.reading = newReading;
+    r.photoPath = editPhotoPath;
     r.updatedAt = DateTime.now().toIso8601String();
     await DbService.putReading(r);
     _loadReadings();
@@ -220,8 +308,8 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _pickPhoto,
-                  icon: Icon(_photoPath != null ? Icons.check_circle : Icons.camera_alt, size: 16),
-                  label: Text(_photoPath != null ? 'Foto lista ✓' : 'Tomar foto evidencia', style: const TextStyle(fontSize: 13)),
+                  icon: Icon(_photoPath != null ? Icons.check_circle : Icons.attach_file, size: 16),
+                  label: Text(_photoPath != null ? 'Foto adjunta ✓' : 'Adjuntar foto (cámara/galería)', style: const TextStyle(fontSize: 13)),
                   style: _photoPath != null ? OutlinedButton.styleFrom(side: BorderSide(color: Colors.green.withOpacity(0.5))) : null,
                 ),
                 const SizedBox(height: 14),
@@ -238,12 +326,60 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
           if (bill != null) ...[
             const SizedBox(height: 12),
             AccentCard(
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Consumo del mes', style: theme.textTheme.bodySmall),
-                  Text('${consumed.toStringAsFixed(0)} kWh', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Consumo del mes', style: theme.textTheme.bodySmall),
+                    Text('${consumed.toStringAsFixed(0)} kWh', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  ]),
+                  GradientText('${bill.total.toStringAsFixed(2)} CUP', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800), gradient: AppTheme.dangerGradient),
                 ]),
-                GradientText('${bill.total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800), gradient: AppTheme.dangerGradient),
+                // Thermometer bar
+                const SizedBox(height: 12),
+                () {
+                  final threshold = widget.config.alertThreshold;
+                  final pct = (consumed / threshold).clamp(0.0, 1.0);
+                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('0 kWh', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                      Text('${consumed.toStringAsFixed(0)} / ${threshold.toStringAsFixed(0)} kWh', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                    ]),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 10,
+                        backgroundColor: theme.colorScheme.primary.withOpacity(0.08),
+                        color: pct >= 0.8 ? theme.colorScheme.secondary : theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${(pct * 100).toStringAsFixed(0)}% del umbral', style: TextStyle(fontSize: 11, color: pct >= 0.8 ? theme.colorScheme.secondary : Colors.grey)),
+                  ]);
+                }(),
+                // Estimation
+                if (_monthReadings.length >= 2) ...[
+                  const Divider(height: 20),
+                  () {
+                    final days = DateTime.parse(_monthReadings.last.date).difference(DateTime.parse(_monthReadings.first.date)).inDays;
+                    if (days <= 0) return const SizedBox();
+                    final avgPerDay = consumed / days;
+                    final daysLeft = (30 - days).clamp(0, 30);
+                    final estimated = consumed + avgPerDay * daysLeft;
+                    final estimatedBill = calcBill(estimated, widget.config.tariffs).total;
+                    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('📊 Estimación fin de mes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+                      const SizedBox(height: 6),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text('Prom: ${avgPerDay.toStringAsFixed(1)} kWh/día', style: theme.textTheme.bodySmall),
+                        Text('~${estimated.toStringAsFixed(0)} kWh → ${estimatedBill.toStringAsFixed(0)} CUP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.secondary)),
+                      ]),
+                      if (daysLeft > 0)
+                        Text('Faltan ~$daysLeft días del ciclo', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ]);
+                  }(),
+                ],
               ]),
             ),
           ],
@@ -260,7 +396,23 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
               child: Row(children: [
                 Icon(Icons.warning_amber, color: theme.colorScheme.secondary, size: 20),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Consumo alcanzó umbral de ${widget.config.alertThreshold.toStringAsFixed(0)} kWh', style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13))),
+                Expanded(child: Text('⚠️ Consumo alcanzó umbral de ${widget.config.alertThreshold.toStringAsFixed(0)} kWh', style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13))),
+              ]),
+            ),
+          ],
+          if (consumed > 400 && consumed < 500) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.bolt, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text('⚡ Te acercas a los 500 kWh. Después se aplica recargo del ${widget.config.tariffs.surcharge.toStringAsFixed(0)}%.', style: const TextStyle(color: Colors.orange, fontSize: 12))),
               ]),
             ),
           ],
@@ -309,6 +461,9 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
               style: TextButton.styleFrom(foregroundColor: theme.colorScheme.secondary),
             ),
           ],
+          // Blackouts section
+          const SizedBox(height: 16),
+          BlackoutsWidget(config: widget.config),
         ]),
       ),
     );

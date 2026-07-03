@@ -1,26 +1,168 @@
-# ⚡ Consumo Eléctrico UNE - Cuba (Mobile)
+# ⚡ UNE Consumo Eléctrico — App Móvil
 
-App móvil Flutter para el control y registro del consumo eléctrico residencial en Cuba, basada en el tarifario oficial de la UNE.
+Aplicación móvil Flutter para el control y registro del consumo eléctrico residencial en Cuba, basada en el tarifario oficial de la Unión Nacional Eléctrica (UNE).
 
-## 📱 Descargar
+Funciona como complemento de la [versión web](../UNE/) con sincronización opcional y compatibilidad total de datos vía JSON.
 
-Descarga el APK desde [Releases](https://github.com/YoandryF/UNE-mobile/releases).
+## 📱 Características
 
-## 📸 Características
+### 🧮 Calculadora de Factura
+- **Modo Normal (kWh → CUP):** Calcula factura por consumo
+- **Modo Inverso / Plan de Ahorro (CUP → kWh):** ¿Cuánto puedo consumir con mi presupuesto?
+- Desglose detallado por rangos de tarifa
+- Recargo automático >500 kWh
 
-- 🧮 **Calculadora** — Cálculo de factura con desglose por rangos
-- 📊 **Registro diario** — Lecturas del metro con foto de evidencia
-- 📈 **Gráficos** — Consumo diario, comparación mensual, costo/día
-- 🔌 **Equipos** — Registro de electrodomésticos con estimación mensual
-- ⚙️ **Configuración** — Tarifas editables, múltiples metros, alertas, tema oscuro/claro
-- 💾 **Backup** — Export/Import en JSON
-- 📷 **Evidencia** — Foto del metro comprimida automáticamente
-- 📍 **Multi-metro** — Soporte para múltiples propiedades, cada uno con sus equipos
+### 📊 Registro de Lecturas
+- Registro con fecha, hora y lectura en kWh
+- Foto de evidencia (cámara o galería)
+- Edición de registros con opción de agregar/cambiar/quitar foto
+- **Termómetro visual** de consumo vs umbral de alerta
+- **Estimación fin de mes** basada en promedio diario
+- Alertas de proximidad a 500 kWh y umbral personalizado
 
-## 📊 Tarifario UNE
+### 📈 Análisis y Gráficos
+- Gráfico de barras del consumo diario (fl_chart)
+- Comparación con mes anterior (% variación)
+- Estimación de fin de mes (kWh y CUP proyectados)
+- Alerta de proximidad a 500 kWh
+- **Top Consumidores** — Gráfico de barras horizontales de equipos ordenados por consumo
+
+### 🔌 Gestión de Equipos
+- **Equipos 24/7** (siempre encendidos) — Cálculo automático con descuento de apagones
+- **Equipos intermitentes** — Registro de uso con hora inicio/fin
+- Validación: máximo 24h por equipo por día
+- Botón rápido "24h completo"
+- Estimación mensual ajustada por apagones
+- Separación visual: permanentes vs intermitentes
+
+### 🔦 Control de Apagones
+- Botón toggle "SE FUE LA LUZ / VOLVIÓ LA LUZ"
+- Historial de apagones con duración
+- Estadísticas: horas totales, promedio/día, racha máxima (30 días)
+- **Impacto en cálculos:** Los equipos 24/7 se ajustan automáticamente descontando horas sin electricidad
+
+### 📡 Selector de Metro Contador
+- Chips de selección rápida en la parte superior
+- Cada metro tiene sus propias lecturas, equipos, gráficas y apagones
+- Solo aparece si hay más de un metro configurado
+
+### ⚙️ Configuración
+- Tarifas editables (18 rangos)
+- Múltiples metros contadores
+- Día de corte del ciclo de facturación
+- Umbral de alerta personalizable
+- Tema claro/oscuro
+- URL del servidor para sincronización (opcional)
+- Export/Import de datos en JSON
+
+### 💾 Persistencia y Sincronización
+- **Offline-first:** Todos los datos se guardan localmente con Hive
+- **Sincronización opcional** con servidor Node.js (configurable)
+- Indicador visual de estado de sync (offline/syncing/synced/error)
+- Cola de operaciones pendientes (se sincronizan cuando hay conexión)
+- Compatible con JSON generado por la versión web
+
+## 🚀 Compilación
+
+### Requisitos
+- Flutter SDK 3.4+
+- Android SDK
+
+### Pasos
+
+```bash
+cd une_consumo
+
+# Instalar dependencias
+flutter pub get
+
+# Compilar APK release
+flutter build apk --release
+```
+
+APK generada en: `build/app/outputs/flutter-apk/app-release.apk`
+
+### Generar iconos (si se modifica assets/icon.png)
+
+```bash
+dart run flutter_launcher_icons
+```
+
+## 📁 Estructura
+
+```
+une_consumo/
+├── lib/
+│   ├── main.dart              # Entry point + HomeScreen + SyncStatusBar
+│   ├── models.dart            # TariffConfig, Reading, Equipment, AppConfig
+│   ├── db_service.dart        # Persistencia Hive + Export/Import
+│   ├── sync_service.dart      # Sincronización con backend (offline-first)
+│   ├── tariff_calc.dart       # Cálculo de factura + cálculo inverso
+│   ├── theme.dart             # Tema oscuro/claro + widgets estilizados
+│   ├── screens/
+│   │   ├── calculator_screen.dart  # Calculadora normal + inversa
+│   │   ├── readings_screen.dart    # Registro + termómetro + apagones
+│   │   ├── chart_screen.dart       # Gráficos + top consumidores
+│   │   ├── equipment_screen.dart   # Equipos + log de uso
+│   │   └── config_screen.dart      # Configuración + export/import
+│   └── widgets/
+│       ├── confirm_dialog.dart     # Diálogo de confirmación
+│       └── blackouts_widget.dart   # Widget de apagones
+├── assets/
+│   ├── icon.png               # Ícono de la app
+│   ├── icon_foreground.png    # Ícono adaptativo (foreground)
+│   └── icon.svg               # Ícono fuente SVG
+├── android/                   # Configuración Android
+├── pubspec.yaml               # Dependencias
+└── README.md
+```
+
+## 📦 Dependencias principales
+
+| Paquete | Uso |
+|---------|-----|
+| hive / hive_flutter | Base de datos local |
+| http | Sincronización con servidor |
+| fl_chart | Gráficos de barras |
+| image_picker | Cámara y galería |
+| intl | Formateo de fechas |
+| share_plus | Compartir export JSON |
+| file_picker | Importar JSON |
+| connectivity_plus | Detección de conectividad |
+| path_provider | Rutas del sistema |
+
+## 🔄 Formato JSON (Export/Import)
+
+Compatible entre web y APK:
+
+```json
+{
+  "readings": [
+    {"id": "...", "reading": 19680, "date": "2026-06-13", "time": "13:21", "photo": null, "meter": 0, "tariffs": {...}, "createdAt": "...", "updatedAt": "..."}
+  ],
+  "equipment": [
+    {"id": "...", "name": "Refrigerador", "watts": 200, "hours": 24, "meter": 0, "alwaysOn": true}
+  ],
+  "blackouts": [
+    {"id": "...", "tipo": "inicio", "timestamp": 1719500000000, "metroId": 0}
+  ],
+  "equipment_usage": [
+    {"id": "...", "equipId": "...", "date": "2026-06-29", "startTime": "10:00", "endTime": "10:30", "meter": 0}
+  ],
+  "config": {
+    "tariffs": {"ranges": [[100, 0.33], ...], "surcharge": 25},
+    "alertThreshold": 450,
+    "billCycleDay": 1,
+    "meters": ["AMANDA", "YENI"],
+    "activeMeter": 0
+  }
+}
+```
+
+## 📊 Tarifario UNE (por defecto)
 
 | Rango | kWh | CUP/kWh |
-|-------|-----|--------|
+|-------|-----|---------|
 | 1 | 0–100 | 0.33 |
 | 2 | 101–150 | 1.07 |
 | 3 | 151–200 | 1.43 |
@@ -40,68 +182,12 @@ Descarga el APK desde [Releases](https://github.com/YoandryF/UNE-mobile/releases
 | 17 | 4201–5000 | 15.00 |
 | 18 | >5000 | 20.00 |
 
-Recargo: 25% sobre kWh que excedan 500.
+**Recargo:** 25% sobre kWh que excedan 500.
 
-## 🛠️ Requisitos de desarrollo
+## 📄 Versión
 
-- Flutter 3.22+
-- Android SDK 34
-- Java 17 (incluido en Android Studio)
-
-## 🚀 Compilar
-
-```bash
-# Dependencias
-flutter pub get
-
-# APK debug
-flutter build apk --debug
-
-# APK release ligero (arm64)
-flutter build apk --release --split-per-abi --target-platform android-arm64
-```
-
-El APK se genera en `build/app/outputs/flutter-apk/`
-
-## 📁 Estructura
-
-```
-lib/
-├── main.dart                    # App + navegación + tema
-├── models.dart                  # Reading, Equipment, AppConfig, TariffConfig
-├── db_service.dart              # Persistencia con Hive/IndexedDB
-├── tariff_calc.dart             # Lógica de cálculo tarifas UNE
-├── theme.dart                   # Tema visual (dark/light) + widgets styled
-├── screens/
-│   ├── calculator_screen.dart   # Calculadora de factura
-│   ├── readings_screen.dart     # Registro lecturas + historial
-│   ├── chart_screen.dart        # Gráficos + comparación
-│   ├── equipment_screen.dart    # Gestión equipos
-│   └── config_screen.dart       # Configuración general
-└── widgets/
-    └── confirm_dialog.dart      # Diálogo de confirmación custom
-```
-
-## 📦 Dependencias
-
-| Paquete | Uso |
-|---------|-----|
-| hive_flutter | Almacenamiento local |
-| image_picker | Captura de fotos |
-| fl_chart | Gráficos de barras |
-| intl | Formato de fechas |
-| share_plus | Exportar backup |
-| file_picker | Importar backup |
-| path_provider | Rutas del sistema |
-
-## 🤝 Contribuir
-
-Ver [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 🌐 Versión Web
-
-Disponible como PWA en [UNE](https://github.com/YoandryF/UNE)
+**v1.1.0** — 2026-07-01
 
 ## 📄 Licencia
 
-MIT License - Uso libre.
+Uso libre. Proyecto personal para control de consumo eléctrico doméstico.

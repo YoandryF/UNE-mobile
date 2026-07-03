@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F0F1A"/>
+      <stop offset="100%" style="stop-color:#1A1A2E"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00D4FF"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="meter" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E94560"/>
+      <stop offset="100%" style="stop-color:#FF6B6B"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <!-- Outer glow ring -->
+  <circle cx="512" cy="480" r="300" fill="none" stroke="url(#bolt)" stroke-width="12" opacity="0.3"/>
+  <!-- Electric meter body -->
+  <rect x="340" y="300" width="344" height="380" rx="40" fill="#16213E" stroke="url(#bolt)" stroke-width="6"/>
+  <!-- Meter display -->
+  <rect x="380" y="340" width="264" height="100" rx="12" fill="#0F3460"/>
+  <!-- kWh numbers -->
+  <text x="512" y="410" font-family="monospace" font-size="52" font-weight="bold" fill="#00D4FF" text-anchor="middle">19926</text>
+  <text x="512" y="430" font-family="sans-serif" font-size="16" fill="#666" text-anchor="middle">kWh</text>
+  <!-- Meter dial -->
+  <circle cx="512" cy="540" r="60" fill="#0F3460" stroke="#00D4FF" stroke-width="3"/>
+  <circle cx="512" cy="540" r="6" fill="#E94560"/>
+  <line x1="512" y1="540" x2="545" y2="510" stroke="url(#meter)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Lightning bolt -->
+  <path d="M490 620 L520 620 L510 660 L545 660 L495 730 L505 690 L475 690 Z" fill="url(#bolt)"/>
+  <!-- Bottom text -->
+  <text x="512" y="820" font-family="sans-serif" font-size="64" font-weight="bold" fill="white" text-anchor="middle">UNE</text>
+  <text x="512" y="870" font-family="sans-serif" font-size="28" fill="#00D4FF" text-anchor="middle" opacity="0.8">Consumo Eléctrico</text>
+  <!-- Small decorative bolts -->
+  <path d="M200 200 L215 200 L210 220 L230 220 L195 260 L200 240 L185 240 Z" fill="#00D4FF" opacity="0.4"/>
+  <path d="M800 150 L815 150 L810 170 L830 170 L795 210 L800 190 L785 190 Z" fill="#7C3AED" opacity="0.4"/>
+  <path d="M820 750 L835 750 L830 770 L850 770 L815 810 L820 790 L805 790 Z" fill="#E94560" opacity="0.3"/>
+</svg>

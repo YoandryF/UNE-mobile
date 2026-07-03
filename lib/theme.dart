@@ -27,6 +27,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        toolbarHeight: 44,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -98,6 +99,7 @@ class AppTheme {
         foregroundColor: Color(0xFF1A1A2E),
         elevation: 0,
         centerTitle: true,
+        toolbarHeight: 44,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
