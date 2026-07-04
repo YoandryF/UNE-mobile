@@ -66,9 +66,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkUpdate() async {
     final config = DbService.getConfig();
-    final serverUrl = config.serverUrl;
-    if (serverUrl.isNotEmpty && mounted) {
-      await UpdateService.checkAndPrompt(context, serverUrl);
+    if (mounted) {
+      await UpdateService.checkAndPrompt(context, config.serverUrl, source: config.updateSource);
     }
   }
 

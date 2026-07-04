@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
@@ -210,10 +211,21 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       onPressed: () async {
                         final url = _buildServerUrl();
                         if (url.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa la IP del servidor'))); return; }
-                        SyncService().serverUrl = url;
-                        final ok = await SyncService().sync();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '✓ Conectado al servidor' : '✗ No se pudo conectar')));
+                        try {
+                          final resp = await http.get(Uri.parse('$url/api/ping')).timeout(const Duration(seconds: 5));
+                          if (mounted) {
+                            if (resp.statusCode == 200) {
+                              SyncService().serverUrl = url;
+                              SyncService().init(url);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Conectado al servidor')));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✗ Servidor respondió con error: ${resp.statusCode}')));
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✗ No se pudo conectar: $e')));
+                          }
                         }
                       },
                       icon: const Icon(Icons.sync, size: 16),
@@ -225,10 +237,10 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         final url = _buildServerUrl();
-                        if (url.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configura el servidor primero'))); return; }
-                        await UpdateService.checkAndPrompt(context, url);
+                        final source = widget.config.updateSource;
+                        await UpdateService.checkAndPrompt(context, url, source: source);
                         if (mounted) {
-                          final version = await UpdateService.checkForUpdate(url);
+                          final version = await UpdateService.checkForUpdate(url, source: source);
                           if (version != null && !UpdateService.hasUpdate(version)) {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Ya tienes la última versión')));
                           } else if (version == null) {
@@ -238,6 +250,25 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       },
                       icon: const Icon(Icons.system_update, size: 16),
                       label: const Text('Actualizaciones', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                // Update source selector
+                Row(children: [
+                  Text('Fuente de actualización: ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: widget.config.updateSource,
+                      isDense: true,
+                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                      items: const [
+                        DropdownMenuItem(value: 'auto', child: Text('Auto (GitHub → Servidor)', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: 'github', child: Text('GitHub Releases', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: 'server', child: Text('Servidor local', style: TextStyle(fontSize: 12))),
+                      ],
+                      onChanged: (v) => setState(() => widget.config.updateSource = v ?? 'auto'),
                     ),
                   ),
                 ]),

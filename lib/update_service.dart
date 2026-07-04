@@ -32,7 +32,10 @@ class AppVersion {
 class UpdateService {
   static const String currentVersion = '1.1.0';
 
-  static Future<AppVersion?> checkForUpdate(String serverUrl) async {
+  static const String githubRepo = 'YoandryF/UNE-mobile';
+
+  /// Check from local server
+  static Future<AppVersion?> _checkFromServer(String serverUrl) async {
     if (serverUrl.isEmpty) return null;
     try {
       final url = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
@@ -41,6 +44,54 @@ class UpdateService {
       return AppVersion.fromJson(jsonDecode(resp.body));
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Check from GitHub Releases API
+  static Future<AppVersion?> _checkFromGitHub() async {
+    try {
+      final resp = await http.get(
+        Uri.parse('https://api.github.com/repos/$githubRepo/releases/latest'),
+        headers: {'Accept': 'application/vnd.github.v3+json'},
+      ).timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) return null;
+      final release = jsonDecode(resp.body) as Map<String, dynamic>;
+      final tagName = (release['tag_name'] ?? '') as String;
+      final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
+      if (version.isEmpty) return null;
+      // Find APK asset
+      String downloadUrl = '';
+      final assets = release['assets'] as List? ?? [];
+      for (final asset in assets) {
+        if ((asset['name'] ?? '').toString().endsWith('.apk')) {
+          downloadUrl = asset['browser_download_url'] ?? '';
+          break;
+        }
+      }
+      return AppVersion(
+        latest: version,
+        minRequired: '0.0.0',
+        forceDate: '2099-12-31',
+        downloadUrl: downloadUrl,
+        changelog: release['body'] ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Check for update based on configured source ('auto', 'github', 'server')
+  static Future<AppVersion?> checkForUpdate(String serverUrl, {String source = 'auto'}) async {
+    switch (source) {
+      case 'github':
+        return _checkFromGitHub();
+      case 'server':
+        return _checkFromServer(serverUrl);
+      case 'auto':
+      default:
+        final github = await _checkFromGitHub();
+        if (github != null && hasUpdate(github)) return github;
+        return _checkFromServer(serverUrl);
     }
   }
 
@@ -118,8 +169,8 @@ class UpdateService {
     }
   }
 
-  static Future<void> checkAndPrompt(BuildContext context, String serverUrl) async {
-    final version = await checkForUpdate(serverUrl);
+  static Future<void> checkAndPrompt(BuildContext context, String serverUrl, {String source = 'auto'}) async {
+    final version = await checkForUpdate(serverUrl, source: source);
     if (version == null || !hasUpdate(version)) return;
     if (!context.mounted) return;
 

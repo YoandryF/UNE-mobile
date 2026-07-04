@@ -150,6 +150,7 @@ class AppConfig {
   int activeMeter;
   bool darkMode;
   String serverUrl;
+  String updateSource; // 'auto', 'github', 'server'
 
   AppConfig({
     TariffConfig? tariffs,
@@ -159,6 +160,7 @@ class AppConfig {
     this.activeMeter = 0,
     this.darkMode = true,
     this.serverUrl = '',
+    this.updateSource = 'auto',
   }) : tariffs = tariffs ?? TariffConfig.defaultConfig(),
        meters = meters ?? ['Metro 1'];
 
@@ -166,7 +168,7 @@ class AppConfig {
     'tariffs': tariffs.toMap(), 'alertThreshold': alertThreshold,
     'billCycleDay': billCycleDay, 'meters': meters,
     'activeMeter': activeMeter, 'darkMode': darkMode,
-    'serverUrl': serverUrl,
+    'serverUrl': serverUrl, 'updateSource': updateSource,
   };
 
   factory AppConfig.fromMap(Map m) {
@@ -186,6 +188,7 @@ class AppConfig {
       activeMeter: m['activeMeter'] ?? 0,
       darkMode: m['darkMode'] ?? m['theme'] == 'dark' || m['theme'] == null,
       serverUrl: m['serverUrl'] ?? '',
+      updateSource: m['updateSource'] ?? 'auto',
     );
   }
 }
