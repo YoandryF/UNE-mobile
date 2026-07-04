@@ -26,12 +26,20 @@ class DbService {
 
   static Future<void> saveConfig(AppConfig config) async {
     await _configBox.put('main', config.toMap());
-    // Queue sync
-    await SyncService().queueOperation({
-      'type': 'upsert',
-      'store': 'config',
-      'data': SyncService.configToServer(config),
-    });
+    // Queue sync only for shared fields (tariffs, meters, etc.)
+    // Don't sync if serverUrl is empty (no server configured)
+    if (config.serverUrl.isNotEmpty) {
+      await SyncService().queueOperation({
+        'type': 'upsert',
+        'store': 'config',
+        'data': SyncService.configToServer(config),
+      });
+    }
+  }
+
+  /// Save config locally without triggering sync (for local-only settings)
+  static Future<void> saveConfigLocal(AppConfig config) async {
+    await _configBox.put('main', config.toMap());
   }
 
   // Readings

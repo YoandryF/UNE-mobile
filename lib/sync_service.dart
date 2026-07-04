@@ -110,7 +110,8 @@ class SyncService extends ChangeNotifier {
       return true;
     } catch (e) {
       final pending = pendingCount;
-      _setStatus(SyncStatus.error, 'Sin conexión${pending > 0 ? ' — $pending pendientes' : ''}');
+      final errMsg = e.toString().length > 60 ? e.toString().substring(0, 60) : e.toString();
+      _setStatus(SyncStatus.error, 'Error: $errMsg${pending > 0 ? ' ($pending pend.)' : ''}');
       return false;
     }
   }

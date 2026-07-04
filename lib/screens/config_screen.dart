@@ -256,7 +256,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             if (resp.statusCode == 200) {
                               // Save config immediately on successful connection
                               widget.config.serverUrl = url;
-                              await DbService.saveConfig(widget.config);
+                              await DbService.saveConfigLocal(widget.config);
                               SyncService().init(url);
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Conectado y guardado')));
                             } else {
@@ -304,7 +304,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       if (!ok) return;
                       final box = Hive.box('_pending');
                       await box.clear();
-                      SyncService().sync();
                       setState(() {});
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Pendientes eliminados')));
                     },
@@ -329,7 +328,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       ],
                       onChanged: (v) async {
                         setState(() => widget.config.updateSource = v ?? 'auto');
-                        await DbService.saveConfig(widget.config);
+                        await DbService.saveConfigLocal(widget.config);
                       },
                     ),
                   ),
@@ -340,7 +339,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     value: widget.config.syncPhotos,
                     onChanged: (v) async {
                       setState(() => widget.config.syncPhotos = v);
-                      await DbService.saveConfig(widget.config);
+                      await DbService.saveConfigLocal(widget.config);
                     },
                   ),
                   const SizedBox(width: 8),
