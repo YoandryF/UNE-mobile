@@ -138,7 +138,7 @@ class UpdateService {
       if (response.statusCode != 200) { client.close(); return null; }
 
       final contentLength = response.contentLength ?? 0;
-      final dir = await getExternalStorageDirectory() ?? await getTemporaryDirectory();
+      final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/une-consumo-update.apk';
       final file = File(filePath);
       final sink = file.openWrite();
@@ -157,15 +157,14 @@ class UpdateService {
     }
   }
 
-  static Future<void> installApk(String filePath) async {
-    const channel = MethodChannel('une_consumo/install');
+  static const _channel = MethodChannel('une_consumo/installer');
+
+  static Future<bool> installApk(String filePath) async {
     try {
-      await channel.invokeMethod('installApk', {'path': filePath});
+      final result = await _channel.invokeMethod('installApk', {'path': filePath});
+      return result == true;
     } catch (_) {
-      // Fallback: try to open via process
-      try {
-        await Process.run('content', ['open', filePath]);
-      } catch (_) {}
+      return false;
     }
   }
 
@@ -212,9 +211,40 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       return;
     }
 
-    // Install
-    await UpdateService.installApk(path);
-    if (mounted) setState(() => _downloading = false);
+    // Try to install
+    final installed = await UpdateService.installApk(path);
+    if (!installed && mounted) {
+      // Show instructions if auto-install failed
+      setState(() { _downloading = false; });
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.download_done, size: 48, color: Colors.green),
+          title: const Text('APK Descargado'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('La actualización se descargó correctamente.', textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            const Text('Para instalar:', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            const Text('1. Abre tu administrador de archivos\n2. Ve a la carpeta de descargas de la app\n3. Toca el archivo .apk\n4. Si te pide permiso de "fuentes desconocidas", acéptalo', style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              child: Text(path, style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+            ),
+          ]),
+          actions: [
+            FilledButton(
+              onPressed: () { Navigator.pop(ctx); Navigator.pop(context); },
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      if (mounted) setState(() => _downloading = false);
+    }
   }
 
   @override
