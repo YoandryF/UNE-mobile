@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import 'models.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
@@ -166,7 +168,14 @@ class SyncService extends ChangeNotifier {
       if (!isIncremental) await readingsBox.clear();
       for (final r in remote['readings']) {
         final map = Map<String, dynamic>.from(r);
-        map['photoPath'] = map['photo'];
+        // Handle photo: if it's base64, save to file
+        final photo = map['photo'];
+        if (photo != null && photo is String && photo.startsWith('data:')) {
+          final localPath = await _savePhotoFromBase64(photo, map['id'].toString());
+          map['photoPath'] = localPath;
+        } else {
+          map['photoPath'] = photo;
+        }
         map.remove('photo');
         if (map['tariffs'] is String) {
           map['tariffs'] = jsonDecode(map['tariffs']);
@@ -195,18 +204,45 @@ class SyncService extends ChangeNotifier {
     }
   }
 
-  static Map<String, dynamic> readingToServer(Reading r) {
+  static Future<Map<String, dynamic>> readingToServer(Reading r, {bool includePhoto = true}) async {
+    String? photoBase64;
+    if (includePhoto && r.photoPath != null && r.photoPath!.isNotEmpty) {
+      try {
+        final file = File(r.photoPath!);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          photoBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        }
+      } catch (_) {}
+    }
     return {
       'id': r.id,
       'reading': r.reading,
       'date': r.date,
       'time': r.time,
-      'photo': r.photoPath,
+      'photo': photoBase64 ?? r.photoPath,
       'meter': r.meter,
       'tariffs': r.tariffs,
       'createdAt': r.createdAt,
       'updatedAt': r.updatedAt,
     };
+  }
+
+  /// Save a base64 photo to local file and return the path
+  static Future<String?> _savePhotoFromBase64(String base64Data, String readingId) async {
+    try {
+      String data = base64Data;
+      if (data.contains(',')) data = data.split(',').last;
+      final bytes = base64Decode(data);
+      final dir = await getApplicationDocumentsDirectory();
+      final photoDir = Directory('${dir.path}/photos');
+      if (!await photoDir.exists()) await photoDir.create(recursive: true);
+      final file = File('${photoDir.path}/$readingId.jpg');
+      await file.writeAsBytes(bytes);
+      return file.path;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Map<String, dynamic> equipmentToServer(Equipment e) {

@@ -151,6 +151,7 @@ class AppConfig {
   bool darkMode;
   String serverUrl;
   String updateSource; // 'auto', 'github', 'server'
+  bool syncPhotos;
 
   AppConfig({
     TariffConfig? tariffs,
@@ -161,6 +162,7 @@ class AppConfig {
     this.darkMode = true,
     this.serverUrl = '',
     this.updateSource = 'auto',
+    this.syncPhotos = true,
   }) : tariffs = tariffs ?? TariffConfig.defaultConfig(),
        meters = meters ?? ['Metro 1'];
 
@@ -169,6 +171,7 @@ class AppConfig {
     'billCycleDay': billCycleDay, 'meters': meters,
     'activeMeter': activeMeter, 'darkMode': darkMode,
     'serverUrl': serverUrl, 'updateSource': updateSource,
+    'syncPhotos': syncPhotos,
   };
 
   factory AppConfig.fromMap(Map m) {
@@ -189,6 +192,7 @@ class AppConfig {
       darkMode: m['darkMode'] ?? m['theme'] == 'dark' || m['theme'] == null,
       serverUrl: m['serverUrl'] ?? '',
       updateSource: m['updateSource'] ?? 'auto',
+      syncPhotos: m['syncPhotos'] ?? true,
     );
   }
 }

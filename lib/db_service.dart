@@ -44,10 +44,12 @@ class DbService {
   static Future<void> putReading(Reading r) async {
     await _readingsBox.put(r.id, r.toMap());
     // Queue sync
+    final config = getConfig();
+    final serverData = await SyncService.readingToServer(r, includePhoto: config.syncPhotos);
     await SyncService().queueOperation({
       'type': 'upsert',
       'store': 'readings',
-      'data': SyncService.readingToServer(r),
+      'data': serverData,
     });
   }
 

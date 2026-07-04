@@ -215,9 +215,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           final resp = await http.get(Uri.parse('$url/api/ping')).timeout(const Duration(seconds: 5));
                           if (mounted) {
                             if (resp.statusCode == 200) {
-                              SyncService().serverUrl = url;
+                              // Save config immediately on successful connection
+                              widget.config.serverUrl = url;
+                              await DbService.saveConfig(widget.config);
                               SyncService().init(url);
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Conectado al servidor')));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Conectado y guardado')));
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✗ Servidor respondió con error: ${resp.statusCode}')));
                             }
@@ -268,9 +270,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
                         DropdownMenuItem(value: 'github', child: Text('GitHub Releases', style: TextStyle(fontSize: 12))),
                         DropdownMenuItem(value: 'server', child: Text('Servidor local', style: TextStyle(fontSize: 12))),
                       ],
-                      onChanged: (v) => setState(() => widget.config.updateSource = v ?? 'auto'),
+                      onChanged: (v) async {
+                        setState(() => widget.config.updateSource = v ?? 'auto');
+                        await DbService.saveConfig(widget.config);
+                      },
                     ),
                   ),
+                ]),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Switch(
+                    value: widget.config.syncPhotos,
+                    onChanged: (v) async {
+                      setState(() => widget.config.syncPhotos = v);
+                      await DbService.saveConfig(widget.config);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Sincronizar fotos con el servidor', style: TextStyle(fontSize: 12, color: Colors.grey[500]))),
                 ]),
               ]),
             ),
