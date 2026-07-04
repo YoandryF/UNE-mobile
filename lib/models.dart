@@ -2,7 +2,7 @@ class TariffRange {
   final double size;
   final double rate;
   TariffRange(this.size, this.rate);
-  Map<String, dynamic> toMap() => {'size': size, 'rate': rate};
+  Map<String, dynamic> toMap() => {'size': size.isInfinite ? null : size, 'rate': rate};
   factory TariffRange.fromMap(Map m) => TariffRange(
     _parseSize(m['size'] ?? m[0]),
     _parseNum(m['rate'] ?? m[1]),

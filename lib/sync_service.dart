@@ -216,6 +216,25 @@ class SyncService extends ChangeNotifier {
     }
   }
 
+  /// Replace Infinity with null for JSON compatibility
+  static dynamic _sanitizeTariffs(Map<String, dynamic> tariffs) {
+    final result = Map<String, dynamic>.from(tariffs);
+    if (result['ranges'] is List) {
+      result['ranges'] = (result['ranges'] as List).map((r) {
+        if (r is Map) {
+          final m = Map<String, dynamic>.from(r);
+          if (m['size'] is double && (m['size'] as double).isInfinite) m['size'] = null;
+          return m;
+        }
+        if (r is List) {
+          return [r[0] is double && (r[0] as double).isInfinite ? null : r[0], r.length > 1 ? r[1] : 0];
+        }
+        return r;
+      }).toList();
+    }
+    return result;
+  }
+
   static Future<Map<String, dynamic>> readingToServer(Reading r, {bool includePhoto = true}) async {
     String? photoBase64;
     if (includePhoto && r.photoPath != null && r.photoPath!.isNotEmpty) {
@@ -234,7 +253,7 @@ class SyncService extends ChangeNotifier {
       'time': r.time,
       'photo': photoBase64 ?? r.photoPath,
       'meter': r.meter,
-      'tariffs': r.tariffs,
+      'tariffs': _sanitizeTariffs(r.tariffs),
       'createdAt': r.createdAt,
       'updatedAt': r.updatedAt,
     };
