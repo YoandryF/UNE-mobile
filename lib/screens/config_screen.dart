@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
@@ -293,6 +294,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 10),
+                // Clear pending
+                if (SyncService().pendingCount > 0)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final count = SyncService().pendingCount;
+                      final ok = await showConfirmDialog(context, '¿Limpiar $count operaciones pendientes?\n\nEstos datos no se enviarán al servidor.', type: ConfirmType.danger);
+                      if (!ok) return;
+                      final box = Hive.box('_pending');
+                      await box.clear();
+                      SyncService().sync();
+                      setState(() {});
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Pendientes eliminados')));
+                    },
+                    icon: Icon(Icons.delete_sweep, size: 16, color: Theme.of(context).colorScheme.secondary),
+                    label: Text('Limpiar ${SyncService().pendingCount} pendientes', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.secondary)),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: Theme.of(context).colorScheme.secondary.withOpacity(0.3)), minimumSize: const Size.fromHeight(38)),
+                  ),
                 const SizedBox(height: 10),
                 // Update source selector
                 Row(children: [
