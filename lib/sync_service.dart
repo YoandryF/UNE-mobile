@@ -197,8 +197,19 @@ class SyncService extends ChangeNotifier {
       for (final c in remote['config']) {
         final key = c['key'] as String;
         final value = c['value'];
-        if (key == 'main') {
-          await configBox.put('main', value);
+        if (key == 'main' && value != null) {
+          // Merge: keep local-only fields, update shared fields from server
+          final current = configBox.get('main');
+          final local = current != null ? Map<String, dynamic>.from(current) : <String, dynamic>{};
+          final remote = Map<String, dynamic>.from(value);
+          // Only update shared fields from server
+          if (remote['tariffs'] != null) local['tariffs'] = remote['tariffs'];
+          if (remote['meters'] != null) local['meters'] = remote['meters'];
+          if (remote['alertThreshold'] != null) local['alertThreshold'] = remote['alertThreshold'];
+          if (remote['billCycleDay'] != null) local['billCycleDay'] = remote['billCycleDay'];
+          if (remote['activeMeter'] != null) local['activeMeter'] = remote['activeMeter'];
+          // Keep local-only fields: serverUrl, updateSource, syncPhotos, darkMode
+          await configBox.put('main', local);
         }
       }
     }

@@ -139,6 +139,37 @@ class _ConfigScreenState extends State<ConfigScreen> {
     await Share.shareXFiles([XFile(file.path)], text: 'Backup Consumo UNE');
   }
 
+  Future<void> _exportPhotos() async {
+    final readings = DbService.getReadings();
+    final photoPaths = readings.where((r) => r.photoPath != null && r.photoPath!.isNotEmpty).map((r) => r.photoPath!).toList();
+    if (photoPaths.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay fotos para exportar')));
+      return;
+    }
+    // Copy to a temp folder and share
+    final dir = await getTemporaryDirectory();
+    final exportDir = Directory('${dir.path}/une-fotos');
+    if (await exportDir.exists()) await exportDir.delete(recursive: true);
+    await exportDir.create();
+
+    int count = 0;
+    for (final path in photoPaths) {
+      final file = File(path);
+      if (await file.exists()) {
+        final name = path.split('/').last;
+        await file.copy('${exportDir.path}/$name');
+        count++;
+      }
+    }
+    if (count == 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se encontraron archivos de fotos')));
+      return;
+    }
+    // Share all photos
+    final files = await exportDir.list().map((f) => XFile(f.path)).toList();
+    await Share.shareXFiles(files, text: 'Fotos UNE Consumo ($count fotos)');
+  }
+
   Future<void> _import() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
     if (result == null || result.files.isEmpty) return;
@@ -178,10 +209,17 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   },
                 ),
                 Row(children: [
-                  Expanded(child: OutlinedButton.icon(onPressed: _export, icon: const Icon(Icons.download), label: const Text('Exportar'))),
+                  Expanded(child: OutlinedButton.icon(onPressed: _export, icon: const Icon(Icons.download, size: 16), label: const Text('Exportar', style: TextStyle(fontSize: 12)))),
                   const SizedBox(width: 8),
-                  Expanded(child: OutlinedButton.icon(onPressed: _import, icon: const Icon(Icons.upload), label: const Text('Importar'))),
+                  Expanded(child: OutlinedButton.icon(onPressed: _import, icon: const Icon(Icons.upload, size: 16), label: const Text('Importar', style: TextStyle(fontSize: 12)))),
                 ]),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _exportPhotos,
+                  icon: const Icon(Icons.photo_library, size: 16),
+                  label: const Text('Exportar Fotos', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
+                ),
               ]),
             ),
           ),
