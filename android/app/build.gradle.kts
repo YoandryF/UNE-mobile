@@ -33,8 +33,8 @@ android {
         applicationId = "com.une.une_consumo"
         minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.1"
     }
 
     signingConfigs {

@@ -30,7 +30,7 @@ class AppVersion {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.1.0';
+  static const String currentVersion = '1.2.1';
 
   static const String githubRepo = 'YoandryF/UNE-mobile';
 
